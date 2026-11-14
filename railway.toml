@@ -1,0 +1,15 @@
+[build]
+builder = "nixpacks"
+
+[build.nixpacks]
+pkgs = ["python310"]
+
+[deploy]
+startCommand = "python build.py && gunicorn app.app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+healthcheckPath = "/"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[variables]
+PYTHONIOENCODING = "utf-8"
