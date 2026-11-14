@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: freight-forecast-sih26006
+    runtime: python
+    buildCommand: "pip install -r requirements.txt && python build.py"
+    startCommand: "gunicorn app.app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+    envVars:
+      - key: PYTHONIOENCODING
+        value: utf-8
+      - key: PYTHON_VERSION
+        value: "3.10.0"

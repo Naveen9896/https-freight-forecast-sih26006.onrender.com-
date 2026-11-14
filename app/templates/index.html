@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIH26006 – Bulk Freight Rate Forecasting | Ministry of Steel</title>
+  <meta name="description" content="AI-powered bulk freight rate prediction and vessel procurement decision support system for Ministry of Steel, Government of India." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<!-- ══════════════════ HEADER ══════════════════ -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo-block">
+      <div class="logo-icon">⚓</div>
+      <div>
+        <div class="logo-title">FreightAI</div>
+        <div class="logo-sub">SIH26006 · Ministry of Steel</div>
+      </div>
+    </div>
+    <nav class="nav-pills">
+      <a href="#predictor" class="nav-pill active">Predict</a>
+      <a href="#analytics" class="nav-pill">Analytics</a>
+      <a href="#batch"     class="nav-pill">Batch</a>
+      <a href="#about"     class="nav-pill">About</a>
+    </nav>
+    <div class="header-badge">
+      <span class="badge-dot"></span>Models Live
+    </div>
+  </div>
+</header>
+
+<!-- ══════════════════ HERO ══════════════════ -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <div class="hero-tag">🇮🇳 Smart India Hackathon 2026 · Problem SIH26006</div>
+    <h1 class="hero-title">Bulk Freight Rate<br/><span class="gradient-text">Forecasting Engine</span></h1>
+    <p class="hero-desc">
+      Predict steel shipping freight rates using Linear Regression &amp; XGBoost.<br/>
+      Drive smarter vessel procurement for India's steel industry.
+    </p>
+    <div class="hero-stats">
+      <div class="stat-card"><span class="stat-num" id="stat-rmse">—</span><span class="stat-label">XGBoost RMSE</span></div>
+      <div class="stat-card"><span class="stat-num" id="stat-r2">—</span><span class="stat-label">XGBoost R²</span></div>
+      <div class="stat-card"><span class="stat-num">10</span><span class="stat-label">Steel Routes</span></div>
+      <div class="stat-card"><span class="stat-num">5000</span><span class="stat-label">Training Samples</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ PREDICTOR ══════════════════ -->
+<section class="section" id="predictor">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">REAL-TIME PREDICTION</div>
+      <h2>Freight Rate Calculator</h2>
+      <p>Enter shipment parameters to get AI-powered rate forecasts and procurement advice</p>
+    </div>
+
+    <div class="predictor-grid">
+      <!-- Input Form -->
+      <div class="glass-card form-card">
+        <h3 class="card-title">📋 Shipment Parameters</h3>
+
+        <div class="form-group">
+          <label for="route">Shipping Route</label>
+          <select id="route" class="form-control">
+            {% for r in routes %}
+            <option value="{{ r }}">{{ r }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="vessel_type">Vessel Type</label>
+            <select id="vessel_type" class="form-control">
+              {% for v in vessels %}
+              <option value="{{ v }}">{{ v }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cargo_type">Cargo Type</label>
+            <select id="cargo_type" class="form-control">
+              {% for c in cargo_types %}
+              <option value="{{ c }}">{{ c }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cargo_volume">Cargo Volume (MT)</label>
+            <input type="number" id="cargo_volume" class="form-control"
+                   value="42000" min="1000" max="150000" step="500" />
+          </div>
+          <div class="form-group">
+            <label for="bunker_fuel">Bunker Fuel ($/MT)</label>
+            <input type="number" id="bunker_fuel" class="form-control"
+                   value="620" min="300" max="1000" step="10" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="month">Month</label>
+            <select id="month" class="form-control">
+              <option value="1">January</option><option value="2">February</option>
+              <option value="3">March</option><option value="4">April</option>
+              <option value="5">May</option><option value="6">June</option>
+              <option value="7">July</option><option value="8">August</option>
+              <option value="9">September</option><option value="10">October</option>
+              <option value="11" selected>November</option><option value="12">December</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="congestion">Port Congestion (0–1)</label>
+            <input type="number" id="congestion" class="form-control"
+                   value="0.3" min="0" max="1" step="0.05" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Model Selection</label>
+          <div class="model-toggle">
+            <button class="toggle-btn active" id="btn-xgb" onclick="setModel('xgboost')">
+              🌲 XGBoost
+            </button>
+            <button class="toggle-btn" id="btn-lr" onclick="setModel('linear')">
+              📈 Linear
+            </button>
+          </div>
+        </div>
+
+        <button id="predict-btn" class="btn-primary" onclick="runPrediction()">
+          <span class="btn-icon">🚀</span> Predict Freight Rate
+        </button>
+      </div>
+
+      <!-- Results Panel -->
+      <div class="results-panel">
+        <!-- Rate Card -->
+        <div class="glass-card result-card" id="result-card">
+          <div class="result-header">
+            <span class="result-tag" id="result-model-tag">XGBoost Prediction</span>
+            <span class="result-live">LIVE</span>
+          </div>
+          <div class="rate-display">
+            <span class="rate-currency">$</span>
+            <span class="rate-value" id="rate-value">—</span>
+            <span class="rate-unit">/tonne</span>
+          </div>
+          <div class="rate-inr" id="rate-inr">≈ ₹ — per tonne</div>
+          <div class="rate-alt" id="rate-alt">Alternative model: —</div>
+
+          <div class="rate-bands" id="rate-bands" style="display:none">
+            <div class="band" id="band-low">Low: <strong id="band-low-val"></strong></div>
+            <div class="band" id="band-mid">Mid: <strong id="band-mid-val"></strong></div>
+            <div class="band" id="band-high">High: <strong id="band-high-val"></strong></div>
+          </div>
+        </div>
+
+        <!-- Procurement Card -->
+        <div class="glass-card procurement-card" id="procurement-card">
+          <h3 class="card-title">⚓ Vessel Procurement Decision</h3>
+          <div class="procurement-grid" id="procurement-grid">
+            <div class="proc-item">
+              <div class="proc-label">Recommended Vessel</div>
+              <div class="proc-value" id="proc-vessel">—</div>
+            </div>
+            <div class="proc-item">
+              <div class="proc-label">Vessels Required</div>
+              <div class="proc-value" id="proc-count">—</div>
+            </div>
+            <div class="proc-item">
+              <div class="proc-label">Total Freight Cost</div>
+              <div class="proc-value" id="proc-cost-usd">—</div>
+            </div>
+            <div class="proc-item">
+              <div class="proc-label">Cost in INR</div>
+              <div class="proc-value" id="proc-cost-inr">—</div>
+            </div>
+            <div class="proc-item">
+              <div class="proc-label">Vessel Utilisation</div>
+              <div class="proc-value" id="proc-util">—</div>
+            </div>
+            <div class="proc-item">
+              <div class="proc-label">Daily Charter Rate</div>
+              <div class="proc-value" id="proc-daily">—</div>
+            </div>
+          </div>
+          <div class="decision-banner" id="decision-banner">
+            Enter parameters and click predict
+          </div>
+        </div>
+
+        <!-- Mini gauge -->
+        <div class="glass-card gauge-card">
+          <h3 class="card-title">📊 Rate Gauge</h3>
+          <div class="gauge-container">
+            <canvas id="gaugeChart" width="220" height="220"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ ANALYTICS ══════════════════ -->
+<section class="section section-dark" id="analytics">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">MODEL ANALYTICS</div>
+      <h2>Performance Dashboard</h2>
+      <p>Compare Linear Regression vs XGBoost on key regression metrics</p>
+    </div>
+
+    <div class="analytics-grid">
+      <!-- Metrics Cards -->
+      <div class="metrics-row" id="metrics-row">
+        <div class="metric-box loading"><div class="metric-label">Loading…</div></div>
+      </div>
+
+      <!-- Historical Trend Chart -->
+      <div class="glass-card chart-card">
+        <h3 class="card-title">📈 Historical Freight Rate Trends (2020–2025)</h3>
+        <div class="chart-wrap">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Feature Importance Chart -->
+      <div class="glass-card chart-card">
+        <h3 class="card-title">🌲 XGBoost Feature Importance (Top 15)</h3>
+        <div class="chart-wrap">
+          <canvas id="featChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Model Comparison Chart -->
+      <div class="glass-card chart-card">
+        <h3 class="card-title">⚔️ Model Comparison</h3>
+        <div class="chart-wrap chart-wrap-sm">
+          <canvas id="compareChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ BATCH PREDICT ══════════════════ -->
+<section class="section" id="batch">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">BULK OPERATIONS</div>
+      <h2>Batch Prediction</h2>
+      <p>Upload a CSV file to get freight rate predictions for multiple shipments</p>
+    </div>
+
+    <div class="batch-grid">
+      <div class="glass-card batch-card">
+        <h3 class="card-title">📂 Upload CSV File</h3>
+        <p class="batch-desc">Required columns: <code>route, vessel_type, cargo_type, cargo_volume_mt, bunker_fuel_usd_mt, month, year</code></p>
+
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('csv-input').click()">
+          <div class="drop-icon">📄</div>
+          <div class="drop-text">Drop CSV here or click to browse</div>
+          <input type="file" id="csv-input" accept=".csv" style="display:none" onchange="handleCSVUpload(event)" />
+        </div>
+
+        <button class="btn-secondary" onclick="downloadSampleCSV()">⬇ Download Sample CSV</button>
+      </div>
+
+      <div class="glass-card batch-results-card" id="batch-results-card">
+        <h3 class="card-title">📊 Batch Results</h3>
+        <div id="batch-output">
+          <div class="empty-state">Upload a CSV to see results here</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ ABOUT ══════════════════ -->
+<section class="section section-dark" id="about">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">PROJECT INFO</div>
+      <h2>About SIH26006</h2>
+    </div>
+    <div class="about-grid">
+      <div class="glass-card about-card">
+        <div class="about-icon">🎯</div>
+        <h4>Problem Statement</h4>
+        <p>Ministry of Steel requires accurate bulk freight rate forecasting to optimize vessel procurement decisions for steel raw materials across Indian ports.</p>
+      </div>
+      <div class="glass-card about-card">
+        <div class="about-icon">🤖</div>
+        <h4>ML Approach</h4>
+        <p>Dual-model architecture: Ridge Regression with polynomial interaction features for interpretability, and XGBoost with GridSearchCV tuning for accuracy.</p>
+      </div>
+      <div class="glass-card about-card">
+        <div class="about-icon">📦</div>
+        <h4>Key Features</h4>
+        <p>Route encoding, cargo volume utilisation, bunker fuel cost, cyclical seasonal demand, port congestion index, and vessel class interaction features.</p>
+      </div>
+      <div class="glass-card about-card">
+        <div class="about-icon">⚓</div>
+        <h4>Procurement Output</h4>
+        <p>Recommends vessel class (Handysize/Supramax/Panamax/Capesize), number of vessels, total freight cost in USD &amp; INR, and spot vs. charter decision.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ FOOTER ══════════════════ -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div>⚓ FreightAI · SIH26006 · Ministry of Steel, Government of India</div>
+    <div>Built with Python · scikit-learn · XGBoost · Flask</div>
+  </div>
+</footer>
+
+<script src="/static/main.js"></script>
+</body>
+</html>
